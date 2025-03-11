@@ -2,25 +2,24 @@
  * @description JavaScript array methods for AHK
  * @file Array.ahk
  * @author Laser Made
- * @date 6/20/2024
- * @version 1.0.1
+ * @date 3/11/2025
+ * @version 1.2
  ***********************************************************************/
 
+;JS_Array.Prototype.base := Array2
 Array.Prototype.base := JS_Array
+Array.DefineProp('from', {call:__arr_from})
+Array.DefineProp('of', {call:__arr_of})
 
 class JS_Array {
-
+    static __New() {
+        __ObjDefineProp := Object.Prototype.DefineProp
+        /*__ObjDefineProp(Array.Prototype, "from", {get:(args*)=> JS_Array.from(args*)})*/
+    }
     static length => this.length
-
-    /*Static Methods*/
-
-    /**
-     * @description create a new array from any object
-     * @returns {Array}
-     */
     static from(obj, mapFn?) {
         newArr := []
-        if obj is String {
+        if (obj is String) {
             loop parse obj {
                 newArr.push(A_LoopField)
             }
@@ -53,13 +52,28 @@ class JS_Array {
         }
         return newArr
     }
+    /*Static Methods*/
+    /* static __New() {
+		; Add JS_Array methods and properties into Array object
+		__ObjDefineProp := Object.Prototype.DefineProp
+		for __JS_Array_Prop in JS_Array.OwnProps()
+			if SubStr(__JS_Array_Prop, 1, 2) != "__"
+				__ObjDefineProp(Array.Prototype, __JS_Array_Prop, JS_Array.GetOwnPropDesc(__JS_Array_Prop))
+		__ObjDefineProp(Array.Prototype, "__Item", {get:(args*)=>JS_Array.__Item[args*]})
+		__ObjDefineProp(Array.Prototype, "__Enum", {call:JS_Array.__Enum})
+	}
+
+    static __Item[args*] {
+
+    }
+    static __Enum(arg) {
+
+    } */
 
     /**
      * Is it possible to implement Async functions (like this) in AHK?
      */
-    static fromAsync() {
-
-    }
+    static fromAsync() => this._unimplemented()
     /**
      * 
      * 
@@ -76,22 +90,37 @@ class JS_Array {
     /*Instance Methods*/
 
     static at(index) => this[index]
+    static push(items*) => this := this.push(items*)
 
-
-    static concat(arr) => this.push(arr*)
+    static concat(arr*) {
+        return this.push(arr*)
+    }
 
     ;not finished
-    static copyWithin(target, start, end?) {
-        this.splice(start, IsSet(end) ? end : this.length)
+    static copyWithin(target, start, end := this.length) {
+        result := this
+        copyValue := this[target]
+        for index, value in this {
+            if index >= start && index <= end {
+                result[index] := copyValue
+            }
+        }
+        return result
     }
 
     static entries() {
-
+        result := []
+        for index, value in this {
+            result.push(index, value)
+        }
+        return result
     }
 
-    static every(function) {
+    static every(func) {
+        if (!HasMethod(func))
+            throw ValueError("Every: func must be a function", -1)
         for value in this {
-            if !function(value)
+            if !func(value)
                 return false
         }
         return true
@@ -193,13 +222,10 @@ class JS_Array {
      * @returns {Array} this
      */
     static forEach(function) {
-        try {
-            for index, value in this
-                function(value, index)
-        } catch {
-            for value in this
-                function(value)
-        }
+        if !HasMethod(func)
+            throw ValueError("forEach: parameter must be a function", -1)
+        for index, value in this
+            function(value, index?)
         return this 
     }
 
@@ -272,16 +298,22 @@ class JS_Array {
     }
 
     /**
-     * @description Creates a new array populated with the results of calling a provided function on every element in the calling array.
-     * @param function The mapping function that accepts one argument.
+     * @description Applies a function to each element in the array (mutates the array).
+     * @param func The mapping function that accepts one argument.
+     * @param arrays Additional arrays to be accepted in the mapping function
      * @returns {Array} A new array with each element being the result of the callback function.
      */
-    static map(function) {
-        result := []
-        for index, value in this {
-            result.push(function(value))
+    static map(func, arrays*) {
+        if !HasMethod(func)
+            throw ValueError("Map: func must be a function", -1)
+        for i, v in this {
+            boundfunc := func.Bind(v?)
+            for _, vv in arrays
+                boundfunc := boundfunc.Bind(vv.Has(i) ? vv[i] : unset)
+            try boundfunc := boundfunc()
+            this[i] := boundfunc
         }
-        return result
+        return this
     }
 
     /**
@@ -323,20 +355,32 @@ class JS_Array {
             this.swap(i, len - i)
         return this
     }
-
-    static shift() => this.removeAt(1)
+    /**
+     * @description Shifts all values to the left by 1 and decrements the length by 1, resulting in the first element being removed. This method mutates the original array. If the length property is 0, undefined is returned.
+     * @returns {Array} 
+     */
+    static shift() {
+        newArray := []
+        for index, value in this {
+            if index = 1
+                continue
+            newArray.push(value)
+        }
+        this := newArray
+        return newArray
+    }
 
     /**
      * @author Descolada
-     * Returns a section of the array from 'start' to 'end', optionally skipping elements with 'step'.
-     * Modifies the original array.
+     * @returns a section of the array from 'start' to 'end', optionally skipping elements with 'step'.
+     * @description Modifies the original array.
      * @param start Optional: index to start from. Default is 1.
      * @param end Optional: index to end at. Can be negative. Default is 0 (includes the last element).
      * @param step Optional: an integer specifying the incrementation. Default is 1.
      * @returns {Array}
      */
     static slice(start:=1, end:=0, step:=1) {
-        len := this.Length, i := start < 1 ? len + start : start, j := Min(end < 1 ? len + end : end, len), r := [], reverse := False
+        len := this.length, i := start < 1 ? len + start : start, j := Min(end < 1 ? len + end : end, len), r := [], reverse := False
         if len = 0
             return []
         if i < 1
@@ -503,6 +547,8 @@ class JS_Array {
     }
 
     static with(index, value) {
+        if index >= this.length or index < (this.length * -1)
+            throw IndexError('Index out of range')
         result := this
         result[index] := value
         return result
@@ -540,5 +586,135 @@ class JS_Array {
                 if v == value
                     count++
         return count
+    }
+    static _unimplemented() {
+        MsgBox('This functionality is not yet implemented.')
+    }
+}
+
+class Array2 {
+    /**
+     * @description create a new array from any object
+     * @returns {Array}
+     */
+    from(obj, mapFn?) {
+        newArr := []
+        if (obj is String) {
+            loop parse obj {
+                newArr.push(A_LoopField)
+            }
+        }
+        else if obj is Array {
+            newArr := obj
+        }
+        else if obj is Map {
+            for key, value in obj {
+                newArr.push([key, value])
+            }
+        }
+        else {
+            try {
+                for key, value in obj.OwnProps() {
+                    newArr.push([key, value])
+                }
+            }
+            catch as e {
+                throw TypeError('Cannot convert object to array: ' . e)
+            }
+        }
+
+        if IsSet(mapFn) {
+            mappedArr := []
+            for value in newArr {
+                mappedArr.push()
+            }
+            newArr := mappedArr
+        }
+        return newArr
+    }
+    
+}
+
+__arr_of(this, args*) => [args*]
+
+/**
+ * @author GroggyOtter
+ * @date 3/5/2025
+ * @param {Object} this - Standard self-refrence from call descriptor
+ * @param {Object} iterable - An iterable object.  
+ *        Something that has an __Enum() method
+ *        Or an object set up to act as an enumerator
+ * @param {Func} [update_fn] - Function to update values each iteration.  
+ *        The returned value is what is stored in the array.  
+ *        Callback requires 2 parameters:  
+ * 
+ * * `Value` : The value of the current element.  
+ * * `Index` : The current index of the element being processed.  
+ * * `obj`   : Optional. If callback has a 3rd parameter, a reference  
+ *   to the iterable object is included.
+ * 
+ *       ; update_fn callback format
+ *       updater(value, index [, obj]) {
+ *           ; Code here
+ *           return 'some value'
+ *       }
+ */
+__arr_from(this, iterable, update_fn:=0) {
+    local arr := []
+        , max_params := 0
+        , include_iterable := 0
+
+    if (update_fn is Func) {                                                                        ; Verify function
+        max_params := update_fn.MaxParams                                                           ; Check max params
+        if (max_params < 2)                                                                         ; Error detection
+            throw Error(1, A_ThisFunc, 'Parameters: ' max_params)
+    }
+    if (max_params > 2)                                                                             ; If at least 3 params
+        include_iterable := 1                                                                       ;   Include object
+
+    switch {                                                                                        ; Check iterable type
+        case (iterable is String):                                                                  ;   Case: string (array of characters)
+            loop parse iterable                                                                     ;     Parse through string
+                arr.Push(process(A_LoopField, A_Index))                                             ;       Process and add item to array
+
+        case (iterable.HasProp('__Enum') || iterable is Enumerator):                                ;   Case: Enumerable or an enumerator
+            for index, value in iterable                                                            ;     For-loop through item
+                ;value := value ?? '<UNSET>'
+                arr.Push(process(value?, index?))                                                   ;       Process and add item to array
+
+        case iterable.HasProp('Length'):                                                            ;   Case: is object with length property
+            subarr := []
+            try loop iterable.Length                                                                ;     Try Iterate through it using the length
+                value := iterable.%A_Index%
+                ,subarr.Push(process(value?, A_Index?))                                             ;       Process and add items to subarray
+            Catch {                                                                                 ;     Catch try error
+                subarr := []                                                                        ;       Reset subarr
+                if iterable.HasMethod('OwnProps')                                                   ;       If OwnProps() Exists
+                    for key, value in iterable.OwnProps()                                           ;         Loop through the items
+                        subarr.Push(process(value?, key?))                                          ;           Add to subarray
+                else err(2, A_ThisFunc, 'Type: ' Type(iterable))
+            }
+            if subarr.Length                                                                        ;     If any items added to subarray
+                arr.Push(subarr*)                                                                   ;       Spread to the main array
+        default: err(2, A_ThisFunc, 'Type: ' Type(iterable))                                        ;   Error if anything else
+    }
+    return arr
+
+    err(msg_num, fn, extra?) {
+        switch msg_num {
+            case 1: msg := 'Invalid callback. The update_fn() function must accept at least 2 params.'
+            case 2: msg := 'Iterable is not enumerable.'
+                . '`nExpected: String, .__Enum() method, Enumerator, '
+                . '.Length property, or OwnProps() method'
+        }
+        throw Error(msg, fn, extra ?? unset)
+    }
+
+    process(v?, i?) {                                                                               ; Processes each iteration's values
+        if update_fn                                                                                ; if update func was provided
+            if include_iterable                                                                     ;   if at least 3 params
+                v := update_fn(v, i, iterable)                                                      ;     run updater w/ iterable and return
+            else v := update_fn(v, i)                                                               ;   else run updater w/o iterable and return
+        return v ?? '<UNSET>'                                                                       ; else return original value
     }
 }
