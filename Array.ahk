@@ -16,130 +16,111 @@ class JS_Array {
         __ObjDefineProp := Object.Prototype.DefineProp
         /*__ObjDefineProp(Array.Prototype, "from", {get:(args*)=> JS_Array.from(args*)})*/
     }
-    static length => this.length
-    static from(obj, mapFn?) {
-        newArr := []
-        if (obj is String) {
-            loop parse obj {
-                newArr.push(A_LoopField)
-            }
-        }
-        else if obj is Array {
-            newArr := obj
-        }
-        else if obj is Map {
-            for key, value in obj {
-                newArr.push([key, value])
-            }
-        }
-        else {
-            try {
-                for key, value in obj.OwnProps() {
-                    newArr.push([key, value])
-                }
-            }
-            catch as e {
-                throw TypeError('Cannot convert object to array: ' . e)
-            }
-        }
+    ;static length => this.length
 
-        if IsSet(mapFn) {
-            mappedArr := []
-            for value in newArr {
-                mappedArr.push()
-            }
-            newArr := mappedArr
-        }
-        return newArr
-    }
     /*Static Methods*/
-    /* static __New() {
-		; Add JS_Array methods and properties into Array object
-		__ObjDefineProp := Object.Prototype.DefineProp
-		for __JS_Array_Prop in JS_Array.OwnProps()
-			if SubStr(__JS_Array_Prop, 1, 2) != "__"
-				__ObjDefineProp(Array.Prototype, __JS_Array_Prop, JS_Array.GetOwnPropDesc(__JS_Array_Prop))
-		__ObjDefineProp(Array.Prototype, "__Item", {get:(args*)=>JS_Array.__Item[args*]})
-		__ObjDefineProp(Array.Prototype, "__Enum", {call:JS_Array.__Enum})
-	}
-
-    static __Item[args*] {
-
-    }
-    static __Enum(arg) {
-
-    } */
 
     /**
      * Is it possible to implement Async functions (like this) in AHK?
      */
     static fromAsync() => this._unimplemented()
-    /**
-     * 
-     * 
-     * @returns {Boolean}
-     */
+
+    ;@returns {Boolean}
     static isArray() => (this is Array)
 
-    /**
-     * 
-     * @returns {Array}
-     */
-    static of(args*) => [args*]
-
     /*Instance Methods*/
+    /**
+     * @param index - The index of the element to retrieve (can be negative to start from the end of the array)
+     * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/at|MDN - at()}
+     */
+    static at(index) => this[index < 0 ? index + this.length : index] 
 
-    static at(index) => this[index]
-    static push(items*) => this := this.push(items*)
+    ;static push(items*) => this.push(items*)
 
+    /**
+     * @param values - The items to add to the end of the array
+     * @returns {Array} a shallow copy of the existing array on which it is called plus any included parameters as new values
+     * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/concat|MDN - concat()}
+     */
     static concat(arr*) {
         return this.push(arr*)
     }
 
-    ;not finished
+    /**
+     * @param target Zero-based index at which to copy the sequence to, converted to an integer. This corresponds to where the element at start will be copied to, and all elements between start and end are copied to succeeding indices.
+     * @param start Zero-based index at which to start copying elements from, converted to an integer.
+     * @param {Any} end Zero-based index at which to end copying elements from, converted to an integer. copyWithin() copies up to but not including end.
+     * @returns {Array} this - The modified array.
+     * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/copyWithin|MDN - copyWithin()}
+     */
     static copyWithin(target, start, end := this.length) {
         result := this
-        copyValue := this[target]
+        copyValue := this[Number(target)]
         for index, value in this {
-            if index >= start && index <= end {
+            if index >= Number(start) && index <= end {
                 result[index] := copyValue
             }
         }
-        return result
+        this := result
+        return this
     }
-
+    /**
+     * @description functionally similar but not exactly the same as Array.entries() in JavaScript due to the lack of an iterator object in AHK
+     * @returns {Array} Containing an array of key-value pairs for each index in the original array
+     * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/entries|MDN - entries()}
+     */
     static entries() {
         result := []
         for index, value in this {
-            result.push(index, value)
+            result.push([index, value])
         }
         return result
     }
-
-    static every(func) {
-        if (!HasMethod(func))
+    /**
+     * @description instances tests whether all elements in the array pass the test implemented by the provided function. It returns a Boolean value.
+     * @param callbackFn A function to execute for each element in the array. It should return a truthy value to indicate the element passes the test, and a falsy value otherwise
+     * @returns {Boolean} true if every element satisfies the condition, else false
+     */
+    static every(callbackFn) {
+        if (!HasMethod(callbackFn))
             throw ValueError("Every: func must be a function", -1)
         for value in this {
-            if !func(value)
+            if !callbackFn(value)
                 return false
         }
         return true
     }
-
+    /**
+     * @param insert Value to fill the array with. Note all elements in the array will be this exact value
+     * @param {Integer} start [optional] One-based index at which to start filling
+     * @param {Any} end One-based index at which to end filling, converted to an integer. fill() fills up to but not including end
+     * @returns {Array} The modified array, filled with the value of the parameter insert
+     */
     static fill(insert, start := 1, end := this.length) {
         for index, value in this {
-            if index >= start && index <= end {
+            if index >= start && index < end {
                 this[index] := insert
             }
         }
         return this
     }
 
+    /**
+     * @description  instances creates a shallow copy of a portion of a given array, filtered down to just the elements from the given array that pass the test implemented by the provided function.
+     * @param function A function to execute for each element in the array. It should return a truthy value to keep the element in the resulting array, and a falsy value otherwise.
+     * @returns {Array} 
+     */
     static filter(function) {
         result := []
         for index, value in this {
-            if function(value) {
-                result.push(value)
+            try {
+                if function(value, index) {
+                    result.push(value)
+                }
+            } catch {
+                if function(value) {
+                    result.push(value)
+                }
             }
         }
         return result    
@@ -183,25 +164,46 @@ class JS_Array {
      * [1,2,3,4].Find(item => (Mod(item, 3) == 0)) ; returns 3
      */
     static findLast(function) {
-        found := ''
+        index := 0
+        while (index > 0) {
+            value := this[index]
+            if function(value) {
+                return value
+            }
+            index--            
+        }
+        return 0
+/*         found := ''
         for index, value in this {
             if function(value) {
                 found := value
             }
         }
-        return found == '' ? 0 : found
+        return found == '' ? 0 : found */
     }
-
+    
+    /**
+     * @description iterates the array in reverse order and returns the index of the first element that satisfies the provided testing function. If no elements satisfy the testing function, 0 is returned.
+     * @param function A function to execute for each element in the array. It should return a truthy value to indicate a matching element has been found, and a falsy value otherwise. The function is called with the following arguments:
+     * @example
+     * [1,3,2,3].findLastIndex(item => (Mod(item, 3) == 0)) ; returns 4
+     */
     static findLastIndex(function) {
-        foundIndex := 0
-        for index, value in this {
-            if function(value) {
-                foundIndex := index
+        index := this.length
+        while (index > 0) {
+            if function(this[index]) {
+                return index
             }
+            index--
         }
-        return foundIndex
+        return 0
     }
 
+    /**
+     * @description creates a new array with all sub-array elements concatenated into it recursively up to the specified depth.
+     * @param {Integer} depth The depth level specifying how deep a nested array structure should be flattened. Defaults to 1.
+     * @returns {Array} A new array with the sub-array elements concatenated into it.
+     */
     static flat(depth := 1) {
         result := []
         depth--
@@ -211,6 +213,7 @@ class JS_Array {
         return depth == 0 ? result : result.flat(depth) 
     }
 
+    ;same as calling this.map(callbackFn).flat()
     static flatMap(function) => this.map(function).flat()
 
     /**
@@ -264,15 +267,22 @@ class JS_Array {
         return 0
     }
 
-    static join(delimiter?) {
-        delimiter := IsSet(delimiter) ? delimiter : ','
+    /**
+     * @description creates and returns a new string by concatenating all of the elements in this array, separated by commas or a specified separator string. If the array has only one item, then that item will be returned without using the separator.
+     * @param delimiter A string to separate each pair of adjacent elements of the array. If omitted, the array elements are separated with a comma (",").
+     * @returns {String} concatenated string of all values in the array, each separated by `delimeter`
+     */
+    static join(delimiter := ',') {
         str := ''
         for index, value in this {
             str := str . value . (index = this.length ? '' : delimiter)
         }
         return str
     }
-
+    /**
+     * 
+     * @returns {Array} returns a new array ~iterator object~ that contains the keys for each index in the array.
+     */
     static keys() {
         result := []
         for index, value in this
@@ -281,23 +291,22 @@ class JS_Array {
     }
 
     /**
-     * @param function A conditional function or expression.
-     * @returns the index of the last element in the array that satisfies the provided conditional function, 
-     * If no values satisfy the testing function, 0 is returned.
-     * @example
-     * [1,3,2,3].lastIndexOf(item => (Mod(item, 3) == 0)) ; returns 4
+     * @param searchElement Element to locate in the array.
+     * @param {Integer[optional]} fromIndex One-based index at which to start searching backwards, converted to an integer.
+     * @returns instances returns the last index at which a given element can be found in the array, or -1 if it is not present. The array is searched backwards, starting at fromIndex.
      */
-    static lastIndexOf(function) {
-        found := 0
-        for index, value in this {
-            if function(value) {
-                found := index
+    static lastIndexOf(searchElement, fromIndex := this.length) {
+        while (fromIndex > 0) {
+            if this[fromIndex] = searchElement {
+                return fromIndex
             }
+            fromIndex--
         }
-        return found
+        return 0
     }
 
     /**
+     * @author Descolada
      * @description Applies a function to each element in the array (mutates the array).
      * @param func The mapping function that accepts one argument.
      * @param arrays Additional arrays to be accepted in the mapping function
@@ -355,6 +364,7 @@ class JS_Array {
             this.swap(i, len - i)
         return this
     }
+
     /**
      * @description Shifts all values to the left by 1 and decrements the length by 1, resulting in the first element being removed. This method mutates the original array. If the length property is 0, undefined is returned.
      * @returns {Array} 
@@ -476,29 +486,29 @@ class JS_Array {
         }
     }
 
-    static splice(start, deleteCount?, items*) {
-        result := []
-        for index, value in this {
-            if index < start || index >= start + deleteCount
-                result.push(value)
-            else {
-                toDelete := deleteCount
-                for item in items {
-                    if deleteCount {
-                        result[index + toDelete - deleteCount] := item
-                        deleteCount--
-                    } else {
-                        result.push(item)
-                    }
-                }     
-            }
-        }
-        this := result
+    /**
+     * @description changes the contents of an array by removing or replacing existing elements and/or adding new elements in place.
+     * @param start One-based index at which to start changing the array, converted to an integer.
+     * @param deleteCount An integer indicating the number of elements in the array to remove from `start`
+     * @param items The elements to add to the array, beginning from start
+     * @returns {Array} An array containing the deleted elements (or an empty array)
+     */
+    static splice(start, deleteCount := this.length - start, items*) {
+        start := Number(start)
+        if -this.length <= start && start < 1
+            start += this.length
+        else if start < -this.length
+            start := 1
+        removed := this.remove(start, deleteCount)
+        for i,v in items {
+            this.InsertAt(start + i - 1, v)
+        }       
+        return removed
     }
 
     static toReversed() {
         result := this
-        max := ((result.Length + 1) // 2)
+        max := ((result.length + 1) // 2)
         index := 0
         while ++index <= max
             result.swap(index, result.Length + 1 - index)
@@ -511,32 +521,49 @@ class JS_Array {
 
     }
 
-    static toSpliced(start, deleteCount?, items*) {
-        result := []
-        for index, value in this {
-            if index < start || index >= start + deleteCount
-                result.push(value)
-            else {
-                toDelete := deleteCount
-                for item in items {
-                    if deleteCount {
-                        result[index + toDelete - deleteCount] := item
-                        deleteCount--
-                    } else {
-                        result.push(item)
-                    }
-                }     
-            }
-        }
+    static toSpliced(start, deleteCount := this.length - start, items*) {
+        result := this
+
+        if -result.length <= start && start < 1
+            start += result.length
+        else if start < -result.length
+            start := 1
+        result.RemoveAt(start, deleteCount)
+        for i,v in items {
+            result.InsertAt(start + i - 1, v)
+        }       
         return result
     }
 
-    static toString() => this.join(',')
+    static toString() => this.join()
 
     static unshift(items*) {
-        new := items.concat(this)
-        this := new
+        result := Array(items*)
+        other := Array(this*)
+        result.push(other*)
+        MsgBox('result:' result.join())
+        this := result
+        MsgBox('this:' this.join())
         return this.length
+
+/*         result := []
+        for item in items {
+            result.push(item)
+        }
+        for thing in this {
+            result.push(thing)
+        }
+        MsgBox('this(1): ' this.join())
+        this := result
+        MsgBox('this(2): ' this.join())
+        return result */
+        ;return this.length
+
+
+/*         result := [items*]
+        result.push(this*)
+        this := result
+        return this */
     }
 
     static values() {
@@ -555,6 +582,22 @@ class JS_Array {
     }
 
     /*Non JavaScript Methods*/
+    /**
+     * @description removes `count` items from an array starting from `start`
+     * @param {Integer} start One-based index to start removing items from the array
+     * @param {Integer} count An integer indicating the number of elements in the array to remove.
+     * @returns {Number | Array} returns the item removed (1) or an array of length equal to `count` containing the items removed
+     */
+    static remove(start := 1, count := 1) {
+        removed := []
+        for i,v in this {
+            if i >= start && count > 0 {
+                removed.push(this.RemoveAt(start))
+                count--
+            }
+        }
+        return removed.length = 1 ? removed[1] : removed
+    }
 
     /**
      * @author Descolada
@@ -587,52 +630,10 @@ class JS_Array {
                     count++
         return count
     }
+
     static _unimplemented() {
         MsgBox('This functionality is not yet implemented.')
     }
-}
-
-class Array2 {
-    /**
-     * @description create a new array from any object
-     * @returns {Array}
-     */
-    from(obj, mapFn?) {
-        newArr := []
-        if (obj is String) {
-            loop parse obj {
-                newArr.push(A_LoopField)
-            }
-        }
-        else if obj is Array {
-            newArr := obj
-        }
-        else if obj is Map {
-            for key, value in obj {
-                newArr.push([key, value])
-            }
-        }
-        else {
-            try {
-                for key, value in obj.OwnProps() {
-                    newArr.push([key, value])
-                }
-            }
-            catch as e {
-                throw TypeError('Cannot convert object to array: ' . e)
-            }
-        }
-
-        if IsSet(mapFn) {
-            mappedArr := []
-            for value in newArr {
-                mappedArr.push()
-            }
-            newArr := mappedArr
-        }
-        return newArr
-    }
-    
 }
 
 __arr_of(this, args*) => [args*]
@@ -658,6 +659,10 @@ __arr_of(this, args*) => [args*]
  *           ; Code here
  *           return 'some value'
  *       }
+ * @example
+ * arr := [1,2,3,4,5]
+ * newArr := Array.from(arr, (value, index) => value * 2)
+ * Peep(newArr) => [2,4,6,8,10]
  */
 __arr_from(this, iterable, update_fn:=0) {
     local arr := []
@@ -681,6 +686,7 @@ __arr_from(this, iterable, update_fn:=0) {
             for index, value in iterable                                                            ;     For-loop through item
                 ;value := value ?? '<UNSET>'
                 arr.Push(process(value?, index?))                                                   ;       Process and add item to array
+
 
         case iterable.HasProp('Length'):                                                            ;   Case: is object with length property
             subarr := []
