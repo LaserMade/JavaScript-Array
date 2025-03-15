@@ -537,14 +537,51 @@ class JS_Array {
 
     static toString() => this.join()
 
-    static unshift(items*) {
-        result := Array(items*)
+    static unshift(elements*) {
+		
+		aNew := []
+
+		if (elements.Length == 0){
+			return this.Length
+		}
+
+		; Handle case where this method is called statically with an array as first parameter
+		if (elements.Length > 0 && Type(this) == "Class" && IsObject(elements[1]) && elements[1].HasProp("Length")) {
+			arr := elements[1]
+			elements.RemoveAt(1)
+			return this.Unshift(arr, elements*)
+		}
+		
+		for element in elements{
+			aNew.Push(element)
+		}
+
+		for item in this {
+			aNew.Push(item)
+		}
+
+		; Clear the original array
+		this.Length := 0
+		
+		for item in aNew {
+			this.Push(item)
+		}
+
+		; Return the new length
+		return this.length
+	}
+
+
+
+        /* result := []
+        itemArr := Array(items*)
         other := Array(this*)
+        result.push(itemArr*)
         result.push(other*)
         MsgBox('result:' result.join())
         this := result
         MsgBox('this:' this.join())
-        return this.length
+        return this.length */
 
 /*         result := []
         for item in items {
@@ -564,7 +601,6 @@ class JS_Array {
         result.push(this*)
         this := result
         return this */
-    }
 
     static values() {
         result := []
